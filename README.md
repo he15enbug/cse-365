@@ -1,7 +1,7 @@
 # pwn.college CSE 365
 ## Dojos
 ### Talking Web
-### Assembly Crash Course
+### Assembly Crash Course **[Finished]**
 
 ### Building a Web Server
 ### Reverse Engineering
