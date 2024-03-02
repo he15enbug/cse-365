@@ -5,7 +5,8 @@
 
 ### Building a Web Server
 ### Reverse Engineering
-
+- Debugging Refresher **[Finished]**
+- Reverse Engineering **[0/22]**
 ### Intercepting Communication
 ### Cryptography
 

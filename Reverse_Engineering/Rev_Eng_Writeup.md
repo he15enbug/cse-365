@@ -157,4 +157,27 @@
 - *level 6*: `gdb` can also modify the behavior of a program. The key for this challenge is to figure out how to automatically input data to the system call `__isoc99_scanf`, by inspecting its arguments, we can know that the first argument, specified in `rdi`, is a format string; the second argument, specified by `rsi`, is an address where the input will be stored, there are 2 subtasks we need to do
     1. skip the manual input process, this can be done by setting the format string a null string, i.e., set the first byte at `[rdi]` to `0x00`: `set *((uint8_t *) $rdi) = 0`
     2. directly put the random value at `[rsi]`: `set *((uint64_t *) $rsi) = $rand_val`
+- *level 7*: this is an elevated instance of `gdb`, run `call (void)win()`
+- *level 8*: we cannot directly use `call (void)win()` to run `win()`, it will show the following information
+    ```
+    The program being debugged was signaled while in a function called from GDB.
+    GDB remains in the frame where the signal was received.
+    To change this behavior use "set unwindonsignal on".
+    Evaluation of the expression containing the function
+    (win) will be abandoned.
+    When the function is done executing, GDB will silently stop.
+    ```
+    - However, we can directly control the execution flow by setting the value in the register `rip`
+    - After we start, run `set $rip=*win` first
+    - There are 2 instructions in the `win` function that will cause an exception, `<win+24>: mov eax, DWORD PTR [rax]` and `<win+33> mov DWORD PTR [rax], edx`, in both cases, the value of `rax` is zero, so `[rax]` will cause invalid memory access. Before executing these 2 instructions, we can set `rip` to skip them
+    ```
+    start
+    display/16i $rip
+    set $rip=*win
+    nexti 6
+    set $rip=$rip+2
+    nexti 2
+    set $rip=$rip+2
+    continue
+    ```
 
