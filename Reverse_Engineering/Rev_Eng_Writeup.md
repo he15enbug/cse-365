@@ -124,6 +124,12 @@
     - move `n` steps forward `nexti <n>`/`ni <n>`, while stepping over function calls 
     - always display some information: `display/<n><u><f>`
     - `layout regs`: put `gdb` into its TUI mode and show the contents of all registers, as well as nearby instructions
+    - modify the state of the target program
+        - `set $rdi = 0`
+        - `set *((uint64_t *) $rsp) = 0x1234` to set the first value (64-bit) on the stack to `0x1234`
+        - `set *((uint16_t *) 0x31337000) = 0x1337` to set the 2 bytes from address `0x31337000` to `0x1337`
+    - break on system calls `catch syscall read`
+
 
 ### `gdb` scripting
 - we can write the `gdb` commands to a `.gdb` file, then launch `gdb` using the flag `-x <PATH_TO_SCRIPT>`. The file will execute all commands after `gdb` launches
@@ -148,5 +154,7 @@
     end
     continue
     ```
-- *level 6*: 
+- *level 6*: `gdb` can also modify the behavior of a program. The key for this challenge is to figure out how to automatically input data to the system call `__isoc99_scanf`, by inspecting its arguments, we can know that the first argument, specified in `rdi`, is a format string; the second argument, specified by `rsi`, is an address where the input will be stored, there are 2 subtasks we need to do
+    1. skip the manual input process, this can be done by setting the format string a null string, i.e., set the first byte at `[rdi]` to `0x00`: `set *((uint8_t *) $rdi) = 0`
+    2. directly put the random value at `[rsi]`: `set *((uint64_t *) $rsi) = $rand_val`
 
