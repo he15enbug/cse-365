@@ -204,4 +204,47 @@
 - *level 5.0*: each byte will be XORed with `0x99`, input the expected result XORed with `0x9999999999`
 - *level 5.1*: debug the program to get the expected result, we can find out that each byte is XORed with `0x8d`
 - *level 6.0*: the key becomes 16 bytes, swap the bytes at indexes `0` and `9`, then XOR each 2-byte block with `0xbf46`, the expected result contains bytes that are not ASCII printable, we can use `printf` to input these bytes: `printf "\x9f\x66\x9a\x61\x98\x6e\x8e\x73\x77\x8b\x71\x89\x6e\x93\x66\x9a" | /challenge/babyrev_level6.0`
-- *level 6.1*: since the process algorithm becomes more and more complex, we cannot directly know how it process the input by inspecting the result, we need to `gdb` the program, and inspect the assembly code
+- *level 6.1*: since the process algorithm becomes more and more complex, we cannot directly know how it process the input by inspecting the result, I did the following
+    1. inspect the assembly code to figure out how the program processes our input, first, `break read` and `start`, we get into the `read` system call, use `nexti` to run a few instructions, then we get out of the `read`, and start the processing logic
+    2. this is the first loop (process the first 9 bytes of the input), its function is to swap `input[i]` and `input[17-i]` for `0 <= i && i <= 8`. An easy way to learn about the functionality of this loop is to `display/18bx $rbp-0x20`, and set a break point at `0x5624f7d34591` (the `jle` instruction), then we can run `continue` to see what happens in each round of the loop
+        ```
+        0x5624f7d3453d:      call   0x5624f7d341a0 <read@plt>
+        0x5624f7d34542:      mov    DWORD PTR [rbp-0x2c],0x0
+        0x5624f7d34549:      jmp    0x5624f7d3458d
+        0x5624f7d3454b:      mov    eax,DWORD PTR [rbp-0x2c]
+        0x5624f7d3454e:      cdqe   
+        0x5624f7d34550:      movzx  eax,BYTE PTR [rbp+rax*1-0x20]
+        0x5624f7d34555:      mov    BYTE PTR [rbp-0x2e],al
+        0x5624f7d34558:      mov    eax,0x11
+        0x5624f7d3455d:      sub    eax,DWORD PTR [rbp-0x2c]
+        0x5624f7d34560:      cdqe   
+        0x5624f7d34562:      movzx  eax,BYTE PTR [rbp+rax*1-0x20]
+        0x5624f7d34567:      mov    BYTE PTR [rbp-0x2d],al
+        0x5624f7d3456a:      mov    eax,DWORD PTR [rbp-0x2c]
+        0x5624f7d3456d:      cdqe   
+        0x5624f7d3456f:      movzx  edx,BYTE PTR [rbp-0x2d]
+        0x5624f7d34573:      mov    BYTE PTR [rbp+rax*1-0x20],dl
+        0x5624f7d34577:      mov    eax,0x11
+        0x5624f7d3457c:      sub    eax,DWORD PTR [rbp-0x2c]
+        0x5624f7d3457f:      cdqe   
+        0x5624f7d34581:      movzx  edx,BYTE PTR [rbp-0x2e]
+        0x5624f7d34585:      mov    BYTE PTR [rbp+rax*1-0x20],dl
+        0x5624f7d34589:      add    DWORD PTR [rbp-0x2c],0x1
+        0x5624f7d3458d:      cmp    DWORD PTR [rbp-0x2c],0x8
+        0x5624f7d34591:      jle    0x5624f7d3454b
+        ```
+    3. then there is the second loop, change all bytes back, i.e., swap `input[i]` and `input[17-i]` for `0 <= i && i <= 8` again
+    4. then there is the third loop, which XOR `input[i]` with `0xbb` for `0 <= i && i <= 17`
+    5. through previous analysis, we know that the key is actually 18 bytes, get to `memcmp`, and inspect the 18 bytes from `$rsi`, the expected output is:
+        ```
+        (gdb) x/18bx $rsi
+        0x560c7d3ce010: 0xcc    0xd4    0xd7    0xc9    0xd9    0xd9    0xd9    0xcd
+        0x560c7d3ce018: 0xcd    0xdf    0xd2    0xcd    0xd1    0xda    0xd9    0xce
+        0x560c7d3ce020: 0xd9    0xd6
+        ```
+    6. XOR each byte with `0xbb`, input this result
+        ```
+        printf "\x77\x6f\x6c\x72\x62\x62\x62\x76\x76\x64\x69\x76\x6a\x61\x62\x75\x62\x6d" | /challenge/babyrev_level6.1
+        ```
+- *level 7.0*
+- *level 7.1*
