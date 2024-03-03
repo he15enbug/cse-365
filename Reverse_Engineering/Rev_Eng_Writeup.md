@@ -246,5 +246,72 @@
         ```
         printf "\x77\x6f\x6c\x72\x62\x62\x62\x76\x76\x64\x69\x76\x6a\x61\x62\x75\x62\x6d" | /challenge/babyrev_level6.1
         ```
-- *level 7.0*
-- *level 7.1*
+- *level 7.0*: nothing new
+- *level 7.1*: debug it
+    1. the input is 26 bytes, before the first loop, it swaps some bytes, the start address of the input data is `0x7ffe44265d80`, i.e., `$rbp-0x30`. The following code actually swaps `input[25]` and `input[9]`
+        ```
+        0x55d1db53756d:      movzx  eax,BYTE PTR [rbp-0x17]
+        0x55d1db537571:      mov    BYTE PTR [rbp-0x43],al
+        0x55d1db537574:      movzx  eax,BYTE PTR [rbp-0x43]
+        0x55d1db537578:      mov    BYTE PTR [rbp-0x27],al
+        0x55d1db53757b:      movzx  eax,BYTE PTR [rbp-0x44]
+        0x55d1db53757f:      mov    BYTE PTR [rbp-0x17],al
+        ```
+    2. the first loop (25 iterations): each byte of the input is XORed with `0xa3`
+    3. the second loop is a nested loop, what it does is to compare 2 adjacent bytes each time, if `input[i] > input[i+1]`, it will swap them. So, the entire second loop actually sort these bytes in ascending order
+        ```
+        (code for swapping adjacent bytes)
+        0x55d1db5375d9:      jbe    0x55d1db537615
+        0x55d1db5375db:      mov    eax,DWORD PTR [rbp-0x38]
+        0x55d1db5375de:      cdqe   
+        0x55d1db5375e0:      movzx  eax,BYTE PTR [rbp+rax*1-0x30]
+        0x55d1db5375e5:      mov    BYTE PTR [rbp-0x42],al    <-- temp1=input[i]
+        0x55d1db5375e8:      mov    eax,DWORD PTR [rbp-0x38]
+        0x55d1db5375eb:      add    eax,0x1
+        0x55d1db5375ee:      cdqe   
+        0x55d1db5375f0:      movzx  eax,BYTE PTR [rbp+rax*1-0x30]
+        0x55d1db5375f5:      mov    BYTE PTR [rbp-0x41],al    <-- temp2=input[i+1]
+        0x55d1db5375f8:      mov    eax,DWORD PTR [rbp-0x38]
+        0x55d1db5375fb:      cdqe   
+        0x55d1db5375fd:      movzx  edx,BYTE PTR [rbp-0x41]
+        0x55d1db537601:      mov    BYTE PTR [rbp+rax*1-0x30],dl <-- input[i]=temp2
+        0x55d1db537605:      mov    eax,DWORD PTR [rbp-0x38]
+        0x55d1db537608:      add    eax,0x1
+        0x55d1db53760b:      cdqe   
+        0x55d1db53760d:      movzx  edx,BYTE PTR [rbp-0x42]
+        0x55d1db537611:      mov    BYTE PTR [rbp+rax*1-0x30],dl <-- input[i+1]=temp1
+        ``` 
+    4. the third loop has 25 iterations, there will be multiple branches, it will first do some computation on `eax` and `edx`, then it will jump to different places (i.e., the current byte will be XORed with different value). When all 25 iterations are done, the result will be compared to the expected result. In high-level, in the i-th iteration, the condition is `$eax = ((($edx >> 0x1e) + i) AND 0x3) - $edx`, notice that `cdq` will make `$edx = 0`, so `$eax = i AND 0x3`, we can also represent it as `i%4`, the range is `{0, 1, 2, 3}`, the number being XORed is `0x77` (`i%3==3`), `0xd` (`i%3==2`), `0x2e` (`i%3==1`), `0x15` (`i%3==0`)
+        ```
+        0x55d1db53763c:      mov    eax,DWORD PTR [rbp-0x34]
+        0x55d1db53763f:      cdq    
+        0x55d1db537640:      shr    edx,0x1e
+        0x55d1db537643:      add    eax,edx
+        0x55d1db537645:      and    eax,0x3
+        0x55d1db537648:      sub    eax,edx
+        0x55d1db53764a:      cmp    eax,0x3
+        0x55d1db53764d:      je     0x55d1db5376b7 <-- XOR 0x77
+        0x55d1db53764f:      cmp    eax,0x3
+        0x55d1db537652:      jg     0x55d1db5376d0 <-- nothing to do
+        0x55d1db537654:      cmp    eax,0x2
+        0x55d1db537657:      je     0x55d1db53769d <-- XOR 0xd
+        0x55d1db537659:      cmp    eax,0x2
+        0x55d1db53765c:      jg     0x55d1db5376d0 <-- nothing to do
+        0x55d1db53765e:      test   eax,eax
+        0x55d1db537660:      je     0x55d1db537669 <-- XOR 0x15
+        0x55d1db537662:      cmp    eax,0x1
+        0x55d1db537665:      je     0x55d1db537683 <-- XOR 0x2e
+        0x55d1db537667:      jmp    0x55d1db5376d0
+        ```
+    5. based on previous analysis, we can use the following Python program to get a valid license key
+        ```
+        def mod_with_condition(hex_list):
+            xors = [0x15, 0x2e, 0xd]
+            len1 = len(hex_list)
+            for i in range(0, len1):
+                hex_list[i] = hex_list[i] ^ xors[i % 3]
+            return hex_list
+        ```
+        ```
+        d7  ec  cf    b3    d0    e8    cb    b0 dd    e7    c4    bc    de    e5    c6    ba db    ff    de    a3    c0    f8    d4    ad ce    f5
+        ```
