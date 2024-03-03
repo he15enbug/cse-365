@@ -180,4 +180,28 @@
     set $rip=$rip+2
     continue
     ```
-
+## Reverse Engineering
+- *level 1.0*: run the program, and try some input, we can know that it takes 5 characters as the input, and from `a` to `z`, the byte will be `0x61` to `0x7a`, and the expected result will be given `6d 65 63 62 65`, so the license key is `mecbe`
+- *level 1.1*: this time, the expected result will not be printed out, but it's fine, we can `gdb` the program. Another problem is that if we run `start`, it will tell us that no `main` function is found, since our ultimate goal is to get the correct key, the program actually uses `memcmp` to check whether our input is correct, we can set a break point there, `break memcmp`, get there, then check the values at `rdi` and `rsi`, in our case, the expected key is stored at `rsi`, we can see it using `x/1s $rsi` or `x/5bx $rsi`
+    ```
+    (gdb) x/5bx $rsi
+    0x5610f12d8010: 0x6a    0x66    0x69    0x71    0x7a
+    (gdb) x/1s $rsi
+    0x5610f12d8010: "jfiqz"
+    ```
+- *level 2.0*: this time, our input will be modified somehow before being compared to the correct key. It directly tells us that it swaps the bytes at indexes `0` and `2`, and the expected result is `6f 6d 61 73 72` (`omasr`), so, we can input `amosr` to get the flag
+- *level 2.1*: it will not tell us the way it process our input, `gdb` the program, similarly to level 1.1, we get into `memcmp`, check the string at `rsi` and `rdi`, our input is `abcde`, and the string at `rdi` is `ebcad`, and the string at `rsi` is `yxugw` (the expected result), so, our input should be `gxuyw`
+    ```
+    x/1s $rsi       x/1s $rdi
+        gxuyw           abcde
+        |  |            |  |
+        yxugw           dbcae
+    ```
+- *level 3.0*: it will reverse the input, just input the reversed expected result
+- *level 3.1*: similar to level 2.1
+- *level 4.0*: it will sort the input, just input the expected result in any order
+- *level 4.1*: debug the program
+- *level 5.0*: each byte will be XORed with `0x99`, input the expected result XORed with `0x9999999999`
+- *level 5.1*: debug the program to get the expected result, we can find out that each byte is XORed with `0x8d`
+- *level 6.0*: the key becomes 16 bytes, swap the bytes at indexes `0` and `9`, then XOR each 2-byte block with `0xbf46`, the expected result contains bytes that are not ASCII printable, we can use `printf` to input these bytes: `printf "\x9f\x66\x9a\x61\x98\x6e\x8e\x73\x77\x8b\x71\x89\x6e\x93\x66\x9a" | /challenge/babyrev_level6.0`
+- *level 6.1*: since the process algorithm becomes more and more complex, we cannot directly know how it process the input by inspecting the result, we need to `gdb` the program, and inspect the assembly code
