@@ -312,6 +312,30 @@
                 hex_list[i] = hex_list[i] ^ xors[i % 3]
             return hex_list
         ```
+- *level 8.0*: easy
+- *level 8.1*: debug the program, the input is 35 bytes
+    1. After `read`ing the input, we get the first loop, it's similar to the third loop in level 7.1. The condition is the same, `i%4`
         ```
-        d7  ec  cf    b3    d0    e8    cb    b0 dd    e7    c4    bc    de    e5    c6    ba db    ff    de    a3    c0    f8    d4    ad ce    f5
+        $eax(i%4)    XORed value
+           0            0x09
+           1            0x8b
+           2            0x58
+           3            0x38
         ```
+    2. The second loop also contains a few branches, the code is more complex, instead of analyzing the static code, I ran a few (`> 6`) iterations, and found that it actually XORed each byte with a value depending on `i%6`
+        ```
+         $eax(i%4)    XORed value
+           0            0xe7
+           1            0x16
+           2            0x9f
+           3            0x0e
+           4            0x91
+           5            0x33
+        ```
+    3. The third loop is nested, looks like a sort function as we have analyzed in level 7.1, set a break point at where this loop ends, by checking the processed input value, it's indeed sorting all bytes in ascending order
+    4. Then, it swaped `input[12]` and `input[23]`
+    5. The fourth loop is swapping `input[i]` and `input[34-i]`, i.e., reversing the input
+    6. Then, it swaped `input[4]` and `input[10]`
+    7. The last loop is like the second one, run it and see what value is XORed in each iteration, we can figure out that the XORed value depends on `i%7`, for result from `0` to `6`, the XORed value is `0x27, 0x65, 0xf3, 0x68, 0x1f, 0x9a, 0x80`
+- *level 9.0*
+- *level 9.1*
