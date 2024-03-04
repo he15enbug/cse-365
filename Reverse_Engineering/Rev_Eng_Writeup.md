@@ -337,5 +337,76 @@
     5. The fourth loop is swapping `input[i]` and `input[34-i]`, i.e., reversing the input
     6. Then, it swaped `input[4]` and `input[10]`
     7. The last loop is like the second one, run it and see what value is XORed in each iteration, we can figure out that the XORed value depends on `i%7`, for result from `0` to `6`, the XORed value is `0x27, 0x65, 0xf3, 0x68, 0x1f, 0x9a, 0x80`
-- *level 9.0*
+- *level 9.0*: this time the computation on the input can not be reversed (e.g., it can calculate some hash value of our input, in that case, even given the expected result, it is computationally hard to find a valid input), but we can patch up to 5 bytes. Debug the program to see what it does
+    1. the program first calls `mprotect` to set the permission for a segment of memory, it set's the memory as readable, writable, and executable to the current process. This segment of memory is actually where we will modify later (up to 5 bytes). After calling `mprotect`, if it succeeds (`$rax==0`), it will do this again, i.e., modifying the permission of the next segment of `0x1000` bytes memory to `rwx`, and loop again, until it fails. An important information is that it can change the permission of `0x6000` bytes in total (from `0x56021448b000` to `0x560214491000`), which means the whole program is now readable, writable, and executable
+        ```
+        $rdi: $rbp-0xa8      <- base address
+        $rsi: 0x1000         <- length
+        $rdx: 0x7            <- mode, 0x7 represent rwx
+        ```
+    2. modify up to 5 bytes, `set [BASE + OFFSET] = TARGET`
+        ```
+        <main+495>:   movzx  ecx,BYTE PTR [rbp-0xc3]  <- TARGET
+        <main+502>:   movzx  eax,WORD PTR [rbp-0xc2]  <- OFFSET
+        <main+509>:   movzx  edx,ax
+        <main+512>:   mov    rax,QWORD PTR [rbp-0xa8] <- BASE
+        <main+519>:   add    rax,rdx                  <- BASE + OFFSET
+        <main+522>:   mov    edx,ecx
+        <main+524>:   mov    BYTE PTR [rax],dl        <- [BASE + OFFSET] = TARGET
+        ```
+    3. the core computation on the input is calculating the MD5 in the following way
+        ```
+        <main+776>:   lea    rax,[rbp-0xa0] <- param 1: hold the MD5 context here
+        <main+783>:   mov    rdi,rax
+        <main+786>:   call   0x55573f526270 <MD5_Init@plt>
+        <main+791>:   lea    rcx,[rbp-0x30]
+        <main+795>:   lea    rax,[rbp-0xa0]
+        <main+802>:   mov    edx,0x1c       <- param 3: data length
+        <main+807>:   mov    rsi,rcx        <- param 2: address of data
+        <main+810>:   mov    rdi,rax        <- param 1: address of MD5 context
+        <main+813>:   call   0x55573f526230 <MD5_Update@plt>
+        <main+818>:   lea    rdx,[rbp-0xa0]
+        <main+825>:   lea    rax,[rbp-0x40]
+        <main+829>:   mov    rsi,rdx        <- param 2: address of MD5 context
+        <main+832>:   mov    rdi,rax        <- param 1: address of result
+        <main+835>:   call   0x55573f526220 <MD5_Final@plt>
+        ```
+    - strategy: we can modify 5 bytes, we know that our input is stored at `$rbp-0x30`, the hash result is stored at `$rbp-0x40`. After getting the hash value, the `memset` will clear the original input at `$rbp-0x30`. Then, the program copied 2 q-words (16 bytes in total) at `$rbp-0x40` to `$rbp-0x30`. Finally, the `memcmp` will compare a number of bytes at `$rbp-0x30` with the expected result, it is impractical to modify the data itself, we can modify the following:
+        1. let `memset` clear the content at somewhere else, so our input will be kept. Notice that `memset` clears `0x1c` bytes, if we let it clear from `$rbp-0x40`, it will still clear some of our input, instead, we can let it clear the content at `$rbp-0x50`
+            ```
+            <main+840>: lea rax,[rbp-0x30] <--- 0x30 -> 0x50
+            ```
+        2. after the MD5 finishes, prevent the 2 q-words being copied to `$rbp-0x30`, we can modify 2 bytes in the code in the following way
+            ```
+            <main+862>:   mov    rax,QWORD PTR [rbp-0x40]
+            <main+866>:   mov    rdx,QWORD PTR [rbp-0x38]
+            <main+870>:   mov    QWORD PTR [rbp-0x30],rax <--- 0x30 -> 0x40
+            <main+874>:   mov    QWORD PTR [rbp-0x28],rdx <--- 0x28 -> 0x38
+            ```
+    - if we succeed, we can just input the expected result itself, and we will pass the verification
+    - we need figure out the offset of 3 bytes
+        1. the `0x30` in `0x56021448d75a <main+840>: lea rax,[rbp-0x30]` (before the `memset`)
+        2. the `0x30` in `0x56021448d778 <main+870>: mov QWORD PTR [rbp-0x30],rax`
+        3. the `0x28` in `0x56021448d77c <main+874>: mov QWORD PTR [rbp-0x28],rdx` 
+    - we can use `x/16bx <ADDRESS>` to check the bytes (each of the above instruction is 4 bytes)
+        ```
+        (gdb) x/4bx 0x56021448d75a
+        0x56021448d75a <main+840>:      0x48    0x8d    0x45    0xd0
+        (gdb) x/4bx 0x56021448d778
+        0x56021448d778 <main+870>:      0x48    0x89    0x45    0xd0
+        (gdb) x/4bx 0x56021448d77c
+        0x56021448d77c <main+874>:      0x48    0x89    0x55    0xd8
+        ```
+    - we can notice that `0xd0` is the displacement of `-0x30`, `0xd8` is the displacement of `-0x28`, what we need is
+        1. `-0x50` (`0x80`) at `OFFSET = 0x56021448d75d - 0x56021448b000 = 0x275d`
+        2. `-0x40` (`0xc0`) at `OFFSET = 0x56021448d77b - 0x56021448b000 = 0x277b`
+        3. `-0x38` (`0xc8`) at `OFFSET = 0x56021448d77f - 0x56021448b000 = 0x277f`
+    - and the expected result is
+        ```
+        81 0c c8 01 30 37 53 31 bb 76 d8 8d 7b 48 5a aa 00 00 00 00 00 00 00 00 00 00 00 00
+        ```
+    - to directly input bytes, we need
+        ```
+        printf "0x275d\n0x80\n0x277b\n0xc0\n0x277f\n0xc8\n0\n0\n0\n0\n\x81\x0C\xC8\x01\x30\x37\x53\x31\xBB\x76\xD8\x8D\x7B\x48\x5A\xAA\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" | /challenge/babyrev_level9.0
+        ```
 - *level 9.1*
