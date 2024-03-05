@@ -430,7 +430,7 @@
         0x5590c7f9e975: 0x48 0x89 0x55 0xd8 <-- 0xd8 to 0xc8
         OFFSET: 0x5590c7f9e978 - 0x5590c7f9d000 = 0x1978
         ```
-    - result
+    - solution
         ```
         printf "0x1956\n0x80\n0x1974\n0xc0\n0x1978\n0xc8\n0\n0\n0\n0\n\x88\x29\xB8\x8F\x93\xD5\x73\x8C\xC1\x38\x6A\x53\xF3\x33\x7C\x8F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" | /challenge/babyrev_level9.1
         ```
@@ -453,5 +453,23 @@
     - base address (for patching the program) `0x555c4f4dd000`
     - offset: `0x555c4f4df395 - 0x555c4f4dd000 = 0x2395`
     - run `printf "0x2395\n0x74\n0" | /challenge/babyrev_level10.1`
-- *level 11.0*: this time we can patch 2 bytes
-- *level 11.1*
+- *level 11.0*: this time we can patch 2 bytes, but the program will perform an integrity check afterwords. Based on the analysis in level 10.0, we can just modify 2 jump instructions, from the assembly code we can know that the first `memcmp` performs the integrity check, while the second `memcmp` compares the hashed input with the expected result
+    ```
+    (integrity check)
+    0x55b0901ff774 <main+1061>:  call   0x55b0901fe290 <memcmp@plt>
+    0x55b0901ff779 <main+1066>:  test   eax,eax
+    0x55b0901ff77b <main+1068>:  jne    0x55b0901ff7f0 <main+1185>
+    ...
+    (key check)
+    0x55b0901ffa0b <main+1724>:  call   0x55b0901fe290 <memcmp@plt>
+    0x55b0901ffa10 <main+1729>:  test   eax,eax
+    0x55b0901ffa12 <main+1731>:  jne    0x55b0901ffa28 <main+1753>
+    ```
+    - the base address for the patching is `0x55b0901fd000`
+    - we just need to modify the `0x75` at `0x55b0901ffa12` (offset `0x2a12`) and `0x55b0901ff77b` to `0x74` (offset `0x277b`)
+    - solution: `printf "0x2a12\n0x74\n0x277b\n0x74\n0" | /challenge/babyrev_level11.0`
+- *level 11.1*: we can patch 2 bytes. Same strategy with level 11.0
+    - one thing we need to take care of is that the opcode for near jump `jne` is `0x0f 0x85`, while for short jump `jne` is `0x75`, by inspecting the code, we can know that the first `jne` is a near jump, while the second is a short jump. The opcode of near jump `je` is `0x0f 0x84`
+    - offset of the first `jne`:  `0x1b15 = 0x56038ebfeb15 - 0x56038ebfd000`
+    - offset of the second `jne`: `0x1bf3 = 0x56038ebfebf3 - 0x56038ebfd000`
+    - solution: `printf "0x1b15\n0x84\n0x1bf3\n0x74\n0" | /challenge/babyrev_level11.1`
