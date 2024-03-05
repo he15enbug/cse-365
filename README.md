@@ -1,10 +1,9 @@
 # pwn.college CSE 365
 ## Dojos
-### Talking Web
+### Talking Web **[Finished]**
 ### Assembly Crash Course **[Finished]**
-
-### Building a Web Server
-### Reverse Engineering
+### Building a Web Server **[0/11]**
+### Reverse Engineering **[Finished]**
 - Debugging Refresher **[Finished]**
 - Reverse Engineering **[Finished]**
 ### Intercepting Communication
