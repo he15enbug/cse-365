@@ -5,20 +5,24 @@ def print_array_hex(arr):
         print(format(num, '02X'), end=' ')
     print()
 
+# '0x11 0x22 0x33' --> '11 22 33'
+def rm_0x(hex_values_with_0x):
+    hex_values = hex_values_with_0x.split()
+    result_string = ' '.join(hex_value[2:] for hex_value in hex_values)
+    print(result_string)
+    return result_string
+
+# '112233' --> '\x11\x22\x33'
 def hex4printf(hex_string):
     byte_string = "".join([r'\x' + hex_string[i:i+2] for i in range(0, len(hex_string), 2)])
     print(byte_string)
 
+# [0x11, 0x22, 0x33] --> '112233'
 def array2hex(arr):
     hex_str = ''.join(hex(num)[2:].zfill(2) for num in arr)
     return hex_str.upper()
 
-def SWAP(brray, idx1, idx2):
-    tmp = brray[idx1]
-    brray[idx1] = brray[idx2]
-    brray[idx2] = tmp
-    return brray
-
+# '11 22 33' --> [0x11, 0x22, 0x33]
 def byte_array(hex_string_with_spaces):
     hex_list = [int(x, 16) for x in hex_string_with_spaces.split()]
     print_array_hex(hex_list)
@@ -27,6 +31,12 @@ def byte_array(hex_string_with_spaces):
 def hex_number(brray):
     hex_num = "0x" + "".join(["{:02x}".format(num) for num in brray])
     print(hex_num)
+
+def SWAP(brray, idx1, idx2):
+    tmp = brray[idx1]
+    brray[idx1] = brray[idx2]
+    brray[idx2] = tmp
+    return brray
 
 def XOR(hex_list1, hex_list2):
     len1 = len(hex_list1)
@@ -97,4 +107,33 @@ def babyrev_level8_1(hex_string_with_spaces):
     hex4printf(array2hex(res))
 
 # babyrev_level8_1('d8 9a 0f 91 f4 63 77 c8 88 18 91 bc 47 5c fc b3 20 a4 a0 25 38 8b 84 53 e4 96 1e f1 4d 38 a2 27 50 d6 c1')
+##########################################################################
+
+def patch4printf(offsets, vals, total=5):
+    res = ''
+    len1 = len(offsets)
+    for i in range(0, total):
+        if(i < len1):
+            res = res + hex(offsets[i]) + '\\n' + hex(vals[i]) + '\\n'
+        else:
+            res = res + '0\\n0\\n'
+    print(res)
+    return res
+
+########################## For babyrev_level9.1 ##########################
+def babyrev_level9_1(hex_string_with_spaces):
+    res = byte_array(hex_string_with_spaces)
+    patch = patch4printf([0x1956, 0x1974, 0x1978], [0x80, 0xc0, 0xc8])
+    input = hex4printf(array2hex(res))
+
+    print('printf "' + patch + input + '" | /challenge/babyrev_level9.1')
+
+exp_res_str = rm_0x('''
+                    0x88    0x29    0xb8    0x8f    0x93    0xd5    0x73    0x8c
+                    0xc1    0x38    0x6a    0x53    0xf3    0x33    0x7c    0x8f
+                    0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00
+                    0x00    0x00    0x00    0x00    0x00
+                    ''')
+
+# babyrev_level9_1(exp_res_str)
 ##########################################################################

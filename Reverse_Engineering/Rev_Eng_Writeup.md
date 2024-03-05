@@ -340,9 +340,9 @@
 - *level 9.0*: this time the computation on the input can not be reversed (e.g., it can calculate some hash value of our input, in that case, even given the expected result, it is computationally hard to find a valid input), but we can patch up to 5 bytes. Debug the program to see what it does
     1. the program first calls `mprotect` to set the permission for a segment of memory, it set's the memory as readable, writable, and executable to the current process. This segment of memory is actually where we will modify later (up to 5 bytes). After calling `mprotect`, if it succeeds (`$rax==0`), it will do this again, i.e., modifying the permission of the next segment of `0x1000` bytes memory to `rwx`, and loop again, until it fails. An important information is that it can change the permission of `0x6000` bytes in total (from `0x56021448b000` to `0x560214491000`), which means the whole program is now readable, writable, and executable
         ```
-        $rdi: $rbp-0xa8      <- base address
-        $rsi: 0x1000         <- length
-        $rdx: 0x7            <- mode, 0x7 represent rwx
+        rdi: [rbp-0xa8]     <- base address
+        rsi: 0x1000         <- length
+        rdx: 0x7            <- mode, 0x7 represent rwx
         ```
     2. modify up to 5 bytes, `set [BASE + OFFSET] = TARGET`
         ```
@@ -409,4 +409,49 @@
         ```
         printf "0x275d\n0x80\n0x277b\n0xc0\n0x277f\n0xc8\n0\n0\n0\n0\n\x81\x0C\xC8\x01\x30\x37\x53\x31\xBB\x76\xD8\x8D\x7B\x48\x5A\xAA\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" | /challenge/babyrev_level9.0
         ```
-- *level 9.1*
+- *level 9.1*: like previous challenges of level `*.1`, there is no `main` function, we need to get somewhere at the beginning of the program, `break printf`, and use `nexti` to get to the address right after the `printf` returns, then we can see the entire logic of the program using `x/160i $rip`. It is the same as level 9.0
+    1. use `mprotect` to change the permission of `6000` bytes in total from `[rbp-0xa8]` (`0x5590c7f9d000`)
+    2. input the offset (base address `[rbp-0xac]`) and new value of the 5 bytes to be modified
+    3. input the data, stored at `$rbp-0x30`
+    4. calculate MD5, the data length is `0x1d`
+    5. use `memset` to clear `0x1d` bytes at `$rbp-0x30`, and copy 2 q-words (16 bytes) at `$rbp-0x40` to `$rbp-0x30`
+    6. compare `0x1d` bytes at `$rbp-0x30` with the expected result
+    - similarly, we just need to modify 3 bytes
+        ```
+        lea rax,[rbp-0x30]
+        0x5590c7f9e953: 0x48 0x8d 0x45 0xd0 <-- 0xd0 to 0x80
+        OFFSET: 0x5590c7f9e956 - 0x5590c7f9d000 = 0x1956
+
+        mov QWORD PTR [rbp-0x30],rax
+        0x5590c7f9e971: 0x48 0x89 0x45 0xd0 <-- 0xd0 to 0xc0
+        OFFSET: 0x5590c7f9e974 - 0x5590c7f9d000 = 0x1974
+
+        mov QWORD PTR [rbp-0x28],rdx
+        0x5590c7f9e975: 0x48 0x89 0x55 0xd8 <-- 0xd8 to 0xc8
+        OFFSET: 0x5590c7f9e978 - 0x5590c7f9d000 = 0x1978
+        ```
+    - result
+        ```
+        printf "0x1956\n0x80\n0x1974\n0xc0\n0x1978\n0xc8\n0\n0\n0\n0\n\x88\x29\xB8\x8F\x93\xD5\x73\x8C\xC1\x38\x6A\x53\xF3\x33\x7C\x8F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" | /challenge/babyrev_level9.1
+        ```
+- *level 10.0*: we can only patch 1 byte, it's impractical to prevent our input from being modified. 
+    - However, we can try to do something to the parameters of `memcmp`, when the program loads the address of the expected result to `rsi`, it uses `lea rsi,[rip+0x2724]`, if we can modify 1 byte of the instruction, let this address the same to `rbp-0x30`, then, the `memcmp` will always get an equal result. Specifically, when executiing `lea rsi,[rip+0x2724]`, the next is truction is `0x55593da9e8ec`, and we can know that `rbp-0x30` is `0x7ffc52a24dc0`, `0x7ffc52a24dc0 - 0x55593da9e8ec = 0x2aa314f864d4`, the instruction we need is `lea rsi,[rip+0x2aa314f864d4]`, it seems impossible to achieve this by modifying only 1 byte
+    - Instead of making `memcmp` return `0` (equal), we can modify the condition of the jump
+        ```
+        0x55593da9e8ef <main+1217>: call   0x55593da9d290 <memcmp@plt>
+        0x55593da9e8f4 <main+1222>: test   eax,eax
+        0x55593da9e8f6 <main+1224>: jne    0x55593da9e90c <main+1246>
+        ```
+        ```
+        0x55593da9e8f6 <main+1224>: 0x75 0x14 <-- 0x75 to 0x74
+        OFFSET = 0x55593da9e8f6 - 0x55593da9c000 = 0x28f6
+        ```
+    - Fortunately, `jne` is just 1 byte `0x75`, we modify it to `je` (`0x74`), then when the MD5 of our input is not equal to the expected result, the program will execute `win` and print out the flags
+    - run `printf "0x28f6\n0x74\n0" | /challenge/babyrev_level10.0`
+- *level 10.1*: we can still patch only 1 byte
+    - address of `jne` after `memcmp`: `0x555c4f4df395`
+    - base address (for patching the program) `0x555c4f4dd000`
+    - offset: `0x555c4f4df395 - 0x555c4f4dd000 = 0x2395`
+    - run `printf "0x2395\n0x74\n0" | /challenge/babyrev_level10.1`
+- *level 11.0*: this time we can patch 2 bytes
+- *level 11.1*
