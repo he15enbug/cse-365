@@ -2,7 +2,7 @@
 ## Dojos
 ### Talking Web **[Finished]**
 ### Assembly Crash Course **[Finished]**
-### Building a Web Server **[7/11]**
+### Building a Web Server **[Finished]**
 ### Reverse Engineering **[Finished]**
 - Debugging Refresher **[Finished]**
 - Reverse Engineering **[Finished]**

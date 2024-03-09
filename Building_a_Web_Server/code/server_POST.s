@@ -60,12 +60,7 @@ child_proc:
     # extract file name from the request
     lea rax, [buf]
     lea rbx, [file_name]
-    add rax, 4
-
-    cmp byte ptr [buf], 0x50
-    jne get_file_name
-    inc rax
-
+    add rax, 5
 get_file_name:
     mov cl, byte ptr [rax]
     mov byte ptr [rbx], cl
@@ -78,10 +73,6 @@ get_file_name:
     mov rbx, [req_size]
     lea rax, [buf + rbx]
     mov rbx, 0
-
-    cmp byte ptr [buf], 0x50
-    jne process_GET
-
 get_post_body:
     inc rbx
     sub rax, 1
@@ -118,45 +109,7 @@ get_post_body:
     mov rdx, 19             # response length
     mov rax, 1              # write()
     syscall
-    jmp exit
 
-process_GET:
-    # open() the file
-    lea rdi, [file_name]
-    mov rsi, O_RDONLY    # open file with O_RDONLY flag
-    xor rdx, rdx         # clear rdx to use default permission mode for newly created file
-    mov rax, 2           # open()
-    syscall
-    mov [file_fd], eax
-
-    # read() from the file
-    mov rdi, [file_fd]
-    lea rsi, [file_buf]
-    mov rdx, 1024
-    mov rax, 0        # read()
-    syscall
-    mov [file_size], rax
-
-    # close() the file FD
-    mov rdi, [file_fd]
-    mov rax, 3        # close()
-    syscall
-
-    # write() HTTP OK to client
-    mov rdi, [cli_fd]
-    lea rsi, [static_resp]  # response content
-    mov rdx, 19             # response length
-    mov rax, 1              # write()
-    syscall
-
-    # write() file content to client
-    mov rdi, [cli_fd]       # client socket FD
-    lea rsi, [file_buf]     # file content
-    mov rdx, [file_size]    # file size
-    mov rax, 1              # write()
-    syscall
-
-exit:
     mov rdi, 0
     mov rax, 60 # exit()
     syscall

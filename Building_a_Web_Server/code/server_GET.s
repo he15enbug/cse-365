@@ -55,17 +55,11 @@ child_proc:
     mov rdx, 1024     # read at most 1024 bytes
     mov rax, 0        # read()
     syscall
-    mov [req_size], rax
 
     # extract file name from the request
     lea rax, [buf]
     lea rbx, [file_name]
     add rax, 4
-
-    cmp byte ptr [buf], 0x50
-    jne get_file_name
-    inc rax
-
 get_file_name:
     mov cl, byte ptr [rax]
     mov byte ptr [rbx], cl
@@ -74,53 +68,6 @@ get_file_name:
     cmp  byte ptr [rax], 0x20
     jne get_file_name
 
-    # get the starting address of the POST body in buf
-    mov rbx, [req_size]
-    lea rax, [buf + rbx]
-    mov rbx, 0
-
-    cmp byte ptr [buf], 0x50
-    jne process_GET
-
-get_post_body:
-    inc rbx
-    sub rax, 1
-    cmp byte ptr [rax], 0x0a # \n character
-    jne get_post_body
-    dec rbx
-    inc rax
-    mov [body_addr], rax
-    mov [body_size], rbx
-
-    # open() the file
-    lea rdi, [file_name]
-    mov rsi, O_WRONLY_O_CREATE
-    mov rdx, 0777      # permission mode: 0777
-    mov rax, 2           # open()
-    syscall
-    mov [file_fd], eax
-
-    # write() the POST body to the file
-    mov rdi, [file_fd]      # client socket FD
-    mov rsi, [body_addr]    # file content
-    mov rdx, [body_size]    # file size
-    mov rax, 1              # write()
-    syscall
-
-    # close() the file FD
-    mov rdi, [file_fd]
-    mov rax, 3        # close()
-    syscall
-
-    # write() HTTP OK to client
-    mov rdi, [cli_fd]
-    lea rsi, [static_resp]  # response content
-    mov rdx, 19             # response length
-    mov rax, 1              # write()
-    syscall
-    jmp exit
-
-process_GET:
     # open() the file
     lea rdi, [file_name]
     mov rsi, O_RDONLY    # open file with O_RDONLY flag
@@ -156,17 +103,12 @@ process_GET:
     mov rax, 1              # write()
     syscall
 
-exit:
     mov rdi, 0
     mov rax, 60 # exit()
     syscall
 
 .section .data
-req_size: .quad 0
-body_size: .quad 0
-body_addr: .quad 0
-O_WRONLY_O_CREATE: .long 0x41
-O_RDONLY: .long 0x0
+O_RDONLY: .long 0
 file_name: 
     .byte 0x22 # double quote
     .fill 200, 1, 0 # a 200-byte buffer
