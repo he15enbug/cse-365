@@ -68,3 +68,8 @@
         .long 0       # address: 0.0.0.0 in network byte order (big-endian)
         .fill 8, 1, 0 # padding: repeat 0 (each 0 is 1 byte) 8 times
     ```
+- *level 4*: call `listen()`
+- *level 5*: call `accept()`
+- *level 6*: call `read()` and `write()`, use `write()` to return static content to the client
+- *level 7*: extract the path from `read()` content, and open the file, `write()` the file content back. We need to take care of the sizes, e.g., `size_t` in 64-bit system should be 64-bit (`.quad`); file descriptors are 32-bit (`.long`), so when loading the returned FD from `rax`, we need to use `[fd], eax`, otherwise, the content after `fd` will be overwritten
+
