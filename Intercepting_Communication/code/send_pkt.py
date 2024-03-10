@@ -18,6 +18,15 @@ def send_TCP():
     tcp = TCP(sport=31337, dport=31337, seq=31337, ack=31337, flags='APRSF')
     pkt = eth / ip / tcp
     sendp(pkt, iface = 'eth0')
+
+def send_ARP():
+    eth = Ether(dst = 'a2:bb:52:d2:69:a5', src = get_if_hwaddr('eth0'))
+    arp = ARP(op = 2, psrc = get_if_addr('eth0'), pdst = '10.0.0.3', hwsrc = '86:55:bf:5b:5c:a0') # op: 2 is-at
+    pkt = eth / arp
+    pkt.show()
+    sendp(pkt, iface = 'eth0')
+
 # send_Ether()
 # send_IP()
-send_TCP()
+# send_TCP()
+# send_ARP()

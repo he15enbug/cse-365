@@ -23,6 +23,13 @@
     sendp(pkt, iface = 'eth0')
     ```
 - *level 11*: 
-- *level 12*: 
+- *level 12*: send an ARP reply
+    ```
+    eth = Ether(dst = 'a2:bb:52:d2:69:a5', src = get_if_hwaddr('eth0'))
+    arp = ARP(op = 2, psrc = get_if_addr('eth0'), pdst = '10.0.0.3', hwsrc = '86:55:bf:5b:5c:a0') # op: 2 is-at
+    pkt = eth / arp
+    pkt.show()
+    sendp(pkt, iface = 'eth0')
+    ```
 - *level 13*: 
 - *level 14*: 
