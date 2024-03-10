@@ -1,0 +1,15 @@
+# Intercepting Communication
+- *level 1*: connect to a host, we can use `nc <IP> <PORT>`
+- *level 2*: listen to a port `nc -l <PORT>`
+- *level 3*: use `nmap` to scan a subnetwork, `nmap -p 31337 10.0.0.0/24`, and find the hosts that are up
+- *level 4*: the subnetwork is larger, use Python to scan the network with multi-threading, to avoid creating too many threads, use a thread pool. We can also set `--max-parallelism` and `--min-parallelism` in `nmap`: `nmap -T5 --min-parallelism 200 --max-parallelism -p <PORT> <SUBNETWORK>`
+- *level 5*: `tcpdump -i any port <PORT> -A`, the flag is in the data field of the packets
+- *level 6*: this time, each packet will contain at most 1 byte of the flag, use Python and `Scapy` to sniff the packets to the specified port, and concatenate the characters in the payload, then we will get the flag
+- *level 7*: 
+- *level 8*: 
+- *level 9*: 
+- *level 10*: 
+- *level 11*: 
+- *level 12*: 
+- *level 13*: 
+- *level 14*: 

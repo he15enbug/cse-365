@@ -6,7 +6,7 @@
 ### Reverse Engineering **[Finished]**
 - Debugging Refresher **[Finished]**
 - Reverse Engineering **[Finished]**
-### Intercepting Communication
+### Intercepting Communication **[6/14]**
 ### Cryptography
 
 ### Access Control
