@@ -7,8 +7,7 @@
 - Debugging Refresher **[Finished]**
 - Reverse Engineering **[Finished]**
 ### Intercepting Communication **[Finished]**
-### Cryptography
-
+### Cryptography **[4/14]**
 ### Access Control
 
 ### Web Security
