@@ -4,6 +4,7 @@ from Crypto.Cipher import AES
 import base64
 import struct
 from pwn import *
+import random
 
 def encode_base64(byte_str, printout = False):
     base64_str = base64.b64encode(byte_str)
@@ -142,3 +143,64 @@ def solve_lv_5():
         print(f'Plaintext: {PLAINTEXT}')
 
     print('\n*****************************************************************\n')
+
+def DH_read(p, stop_str):
+    p.readuntil(stop_str)
+    return int(p.readline()[2:-1].decode('utf-8'), 16)
+
+def DH_read_secret(p):
+    p.readuntil('secret ciphertext (b64): ')
+    return p.readline()[0:-1]
+
+def DH_send_B(p, B):
+    p.readuntil('B: ')
+    p.sendline(hex(B).encode())
+
+def key_gen(key_len):
+    hex_digits = '0123456789abcdef'
+    hex_str = ''
+    for i in range(0, key_len):
+        hex_str = hex_str + random.choice(hex_digits)
+    return int(hex_str, 16)
+
+def DH_exchange():
+    # initialization
+    p = process('/challenge/run')
+    p_val = DH_read(p, 'p: ')
+    g_val = DH_read(p, 'g: ')
+    # print(hex(p_val))
+
+    # key generation
+    B_sk = key_gen(len(hex(p_val)) - 2)
+
+    # public key exchange
+    A = DH_read(p, 'A: ')
+    B = pow(g_val, B_sk, p_val)
+    DH_send_B(p, B)
+    print(hex(B))
+
+    S = pow(A, B_sk, p_val)
+    key = bytes.fromhex(hex(S)[2:])
+    print(f'Shared key: {key}\n')
+    key = S.to_bytes(256, 'little')
+    print(f'Shared key: {key}\n')
+    # 
+    secret_b64 = DH_read_secret(p)
+    secret     = decode_base64(secret_b64)
+    print(f'Secret: {secret}\nSecret size: {len(secret)}\n')
+
+    print(bytes([i ^ j for i, j in zip(key[:len(secret)], secret)]).decode('utf-8'))
+
+def decrypy_RSA(e, d, n, secret_val):
+    msg_val = pow(secret_val, d, n)
+    byte_str = msg_val.to_bytes((msg_val.bit_length() + 7) // 8, byteorder='little')
+    return byte_str
+
+def solve_lv_7():
+    e = 0x10001
+    d = 0x61e847df56a73ec7998f08bbdee5c01ada2cd62e95121e61655b81e1468f0d8c56f121d928b25934199d29f5dc2ac03fe9df8f719a7472ee6c8ea857bf3b18b328be68289e3f724e236919d00701cea2c107feeb985962223c5063f1a48f0f207688a4cda9b103606fcecc0ad83e94d22eb8007e1a10e9102c8fe8775c6fbe92ca4e0fcffc9c164e9673c3c51a328dc686e1d0be2c9ced8f16ccae75d142c914a146e76931fcfe2d415ee70ac505ed2e7037a0aa0564dee9bb9a56bba928b8738b0346615fac6892a4176e6a1764a5abbf71ba0bfd8be9c99d2b654b158cefaa6eebb8d2bb226b0ad5d99e422c6124d3da3d2e906aba930539f11d6351beac41
+    n = 0xccec53c84307a1acbd99fc2a2f1b11ed1dc1ddf388b46b2a057803a2ee36521cd0c18b23465722faca60919e76c8601a81c2fc9bbf6d99776d77574de534e9bf63f41a7b4718dbe04261903adf4fd77c44e52edc378154139bf32eb777f5f5237f17e68b0a95c19d433b395febab9a1a73fbad3ee055d6ac107ba8ad3c5cd60973a221da1e59452cf59575f2f8cc6fcf59692787a40b5463aab72b18a354e079b49e38ccae67384d3219e7899973639c996465ead24918ffdd89f9f3f96ac087fee1a2a518f2fe70a6eb46da664714ffc053f7dea8f693fc4be8c70dba5b34cdd08b8c11b56c3dc4994321dc21b678ec38f64427efb8a176944ad0192d854631
+    secret_b64 = 'Gp3SOhjbbZ7Q5LDyCEITE02l3bGJZmyRlk9tR9RI5JOcB0ebOAUjYh/YqxH40Y10NntERvnSnLwsHKP+5wbONCdqlnm7OllsIO6wkRtYMofQIyHnMrkUBdX3LPDGzN+ZIOP5/ommpRSBBHPF8ecW4Rh4l5H9FK0Z7zOSs9CLJyxzcyAO6tYGC04HSwZeil5GQLF24rW6W0YmjRWeluICX0NniUdA5oG1BT+3AbVlVSAXYp21fmKAd1rD7PvCasX8JgCxsdHpgsE8T6lYxvM22r3zZgn5QTXISkDGCbT94gsG9DVd0giy+XXvseRqklZ8eeuRi7W4uKDUiO53Hfr9iw=='
+    secret = decode_base64(secret_b64)
+    secret_val = int.from_bytes(secret, byteorder='little')
+    print(decrypy_RSA(e, d, n, secret_val))
