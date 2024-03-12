@@ -5,6 +5,7 @@ import base64
 import struct
 from pwn import *
 import random
+import hashlib
 
 def encode_base64(byte_str, printout = False):
     base64_str = base64.b64encode(byte_str)
@@ -204,3 +205,67 @@ def solve_lv_7():
     secret = decode_base64(secret_b64)
     secret_val = int.from_bytes(secret, byteorder='little')
     print(decrypy_RSA(e, d, n, secret_val))
+
+def decrypt_RSA_prime_factors(e, p, q, secret_val):
+    n = p * q
+    d = pow(e, -1, (p - 1) * (q - 1))
+    msg_val = pow(secret_val, d, n)
+    byte_str = msg_val.to_bytes((msg_val.bit_length() + 7) // 8, byteorder='little')
+    return byte_str
+
+def solve_lv_8():
+    e = 0x10001
+    p = 0xbf676899602b730066ea150f3c2d6e3ca8e280723861feb9256202e4a9d58b6b4073fec4b52fc2d8ba761b8d3abbc075f45ac69cd95b65bb1ff8bc0d86657c7818e7dd062c051d42b412c718ea9026ca180d3f143835223c85a0b9ebc9da15afe7028a595e63116ccf0c1e920ae7189cb64ec28614ce4d9fe66bf3280e0db253
+    q = 0xdc8ef9bfe07bd01c1eaf4166b721c5c36dfe12833097ace437fe8c3b040f11e2f4dd91b2e9f6994c91762a4acf10ef131391dfc65fd49bc034528931829197eb24a08d038820d89a3db3957ec6eeb289371e96bf1a68a4cd76130759e2912b7c966934b8246bb306dc9960c504dd120fbce54e9a45395811f83c54e61b89b0ab
+    secret_b64 = 'WPX/IVvRC0DLVydOjOvwSrkuH1bt9sS0Ar/0w40tQQQHsovmTqQpyUHDDAlGue/o1Nv1/wcOXZ7+ZgSgwgewmYG//nSr6BiUQ/A5X9unGbd/1oKNd1yljkOZJ756KwZg2/0xq/vpqLI6UzrPDnQ3uYaE/QPXlMij3LP/0NltKFVP/MTTsKnALxupJluViZEDHg3s7Oy8RTpgkkFwIwUYMWACGYmrNFdKVx/kHGEu/GA+ytVDpTu5b1PfdKX1Ebj3Kljxq3WgSaAeiU+Bct4kK8GLAw0kgN4nxWXk78UrE7kRdhiD+XUily4wlp+JMxmwS/oSubxtDKAu0/rn8Hjhaw=='
+    secret = decode_base64(secret_b64)
+    secret_val = int.from_bytes(secret, byteorder='little')
+    print(decrypt_RSA_prime_factors(e, p, q, secret_val))
+
+def collision_2_bytes():
+    p = process('/challenge/run')
+    p.readuntil('secret sha256[:2] (b64): ')
+    two = decode_base64(p.readline()[:-1])
+    print(two)
+
+    collision_b64 = ''
+    for i in range(0, 1000000):
+        msg = i.to_bytes((i.bit_length() + 7) // 8, byteorder='little')
+        sha256 = hashlib.sha256()
+        sha256.update(msg)
+        sha256_hash = sha256.digest()
+        pre = sha256_hash[0:2]
+        print(f'First 2 bytes of sha256({i}): {pre}')
+        if(pre == two):
+            collision_b64 = encode_base64(msg)
+            print(f'Collision Message (b64): {collision_b64}')
+            break
+    p.readuntil('collision (b64): ')
+    p.sendline(collision_b64)
+
+    p.readuntil('flag: ')
+    print(p.readline())
+
+def PoW():
+    p = process('/challenge/run')
+    p.readuntil('challenge (b64): ')
+    challenge = decode_base64(p.readline()[:-1])
+    print(challenge)
+
+    collision_b64 = ''
+    for i in range(0, 1000000):
+        msg = i.to_bytes((i.bit_length() + 7) // 8, byteorder='little')
+        sha256 = hashlib.sha256()
+        sha256.update(challenge + msg)
+        sha256_hash = sha256.digest()
+        pre = sha256_hash[0:2]
+        print(f'First 2 bytes of sha256(challenge+msg): {pre}')
+        if(pre == b'\x00\x00'):
+            collision_b64 = encode_base64(msg)
+            print(f'Collision Message (b64): {collision_b64}')
+            break
+    p.readuntil('response (b64): ')
+    p.sendline(collision_b64)
+
+    p.readuntil('flag: ')
+    print(p.readline())
