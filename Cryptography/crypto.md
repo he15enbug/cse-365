@@ -11,4 +11,7 @@
 - *level 8*: we need to calculate `d` and `n` using `p` and `q`, where `n=p*q`, `d=e^-1 mod (p-1)*(q-1)`. In Python, we can directly get the modular inverse of `e` using `pow(e, -1, (p-1)*(q-1))`
 - *level 9*: find a small hash collision, where the first 2 bytes is the same as the given value, brute force. For convenience, we enumerate numbers from 1 to 1000000, and convert it to a byte string (byte order does not matter)
 - *level 10*: an easy version of proof-of-work
-- *level 11*: 
+- *level 11*: RSA challenge response, the program will give the key pair and a challenge
+- *level 12*: RSA challenge response, we need to provide the key pair, use `RSA.generate(key_length)` to generate the key pair
+- *level 13*: we need to use the RSA private key to sign a user certificate. A root certificate and signature is provided. Notice that the RSA signature is performed on the SHA256 digest of the certificate (we can verify that by signing the root certificate, and compare it to the given signature)
+- *level 14*: Perform a simplified TLS handshake as server, it combines the DH key exchange, and certificate signing, remember to refer to the code of '/challenge/run', so we can know more details about the verifying process

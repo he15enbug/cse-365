@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
 from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
+from Crypto.Hash.SHA256 import SHA256Hash
 import base64
 import struct
 from pwn import *
 import random
 import hashlib
+import json
 
 def encode_base64(byte_str, printout = False):
     base64_str = base64.b64encode(byte_str)
@@ -192,7 +195,7 @@ def DH_exchange():
 
     print(bytes([i ^ j for i, j in zip(key[:len(secret)], secret)]).decode('utf-8'))
 
-def decrypy_RSA(e, d, n, secret_val):
+def decrypt_RSA(e, d, n, secret_val):
     msg_val = pow(secret_val, d, n)
     byte_str = msg_val.to_bytes((msg_val.bit_length() + 7) // 8, byteorder='little')
     return byte_str
@@ -204,7 +207,7 @@ def solve_lv_7():
     secret_b64 = 'Gp3SOhjbbZ7Q5LDyCEITE02l3bGJZmyRlk9tR9RI5JOcB0ebOAUjYh/YqxH40Y10NntERvnSnLwsHKP+5wbONCdqlnm7OllsIO6wkRtYMofQIyHnMrkUBdX3LPDGzN+ZIOP5/ommpRSBBHPF8ecW4Rh4l5H9FK0Z7zOSs9CLJyxzcyAO6tYGC04HSwZeil5GQLF24rW6W0YmjRWeluICX0NniUdA5oG1BT+3AbVlVSAXYp21fmKAd1rD7PvCasX8JgCxsdHpgsE8T6lYxvM22r3zZgn5QTXISkDGCbT94gsG9DVd0giy+XXvseRqklZ8eeuRi7W4uKDUiO53Hfr9iw=='
     secret = decode_base64(secret_b64)
     secret_val = int.from_bytes(secret, byteorder='little')
-    print(decrypy_RSA(e, d, n, secret_val))
+    print(decrypt_RSA(e, d, n, secret_val))
 
 def decrypt_RSA_prime_factors(e, p, q, secret_val):
     n = p * q
@@ -269,3 +272,142 @@ def PoW():
 
     p.readuntil('flag: ')
     print(p.readline())
+
+def p_read_hex_val(p, stop_str):
+    p.readuntil(stop_str)
+    return int(p.readline()[2:-1], 16)
+
+def p_send_hex_val(p, stop_str, val):
+    p.readuntil(stop_str)
+    p.sendline(hex(val))
+
+def p_send_b64(p, stop_str, byte_str):
+    p.readuntil(stop_str)
+    p.sendline(encode_base64(byte_str))
+
+def p_read_b64(p, stop_str):
+    p.readuntil(stop_str)
+    res_b64 = p.readline()[:-1]
+    return decode_base64(res_b64)
+
+def RSA_challenge_response():
+    p = process('/challenge/run')
+    e = p_read_hex_val(p, 'e: ')
+    d = p_read_hex_val(p, 'd: ')
+    n = p_read_hex_val(p, 'n: ')
+    challenge = p_read_hex_val(p, 'challenge: ')
+    response  = decrypt_RSA(e, d, n, challenge, False)
+    print(hex(response))
+    p_send_hex_val(p, 'response: ', response)
+
+    p.readuntil('flag: ')
+    print(p.readline())
+
+def RSA_public_key_gen():
+    key = RSA.generate(1024)
+    e, d, n = key.e, key.d, key.n
+    p = process('/challenge/run')
+    p_send_hex_val(p, 'e: ', e)
+    p_send_hex_val(p, 'n: ', n)
+    challenge = p_read_hex_val(p, 'challenge: ')
+    response  = decrypt_RSA(e, d, n, challenge, False)
+    print(hex(response))
+    p_send_hex_val(p, 'response: ', response)
+
+    secret_val = int.from_bytes(p_read_b64('secret ciphertext (b64): '), 'little')
+
+    print(decrypt_RSA(e, d, n, secret_val))
+
+def sign(e, d, n, cert_bytes, return_bytes = True):
+    sha256 = hashlib.sha256()
+    sha256.update(cert_bytes)
+    cert_val = int.from_bytes(sha256.digest(), 'little')
+    sig_val = pow(cert_val, d, n)
+    if(return_bytes):
+        return sig_val.to_bytes((sig_val.bit_length() + 7) // 8, byteorder='little')
+    return sig_val
+
+def sign_cert():
+    p = process('/challenge/run')
+    d = p_read_hex_val(p, 'root key d: ')
+    root_cert = p_read_b64(p, 'root certificate (b64): ')
+    root_cert_sig = p_read_b64(p, 'root certificate signature (b64): ')
+
+    cert_str = root_cert.decode('utf-8')  # Decode byte string to regular string
+    root_cert_json = json.loads(cert_str)
+    n = root_cert_json['key']['n']
+    e = root_cert_json['key']['e']
+    
+    user_cert_json = root_cert_json
+    key = RSA.generate(1024)
+    user_e, user_d, user_n = key.e, key.d, key.n
+    user_cert_json['name'] = 'user'
+    user_cert_json['key']['n'] = user_n
+    user_cert_json['key']['e'] = user_e
+
+    user_cert_bytes = json.dumps(user_cert_json).encode('utf-8')
+    user_cert_sig   = sign(e, d, n, user_cert_bytes)
+
+    p_send_b64(p, 'user certificate (b64): ', user_cert_bytes)
+    p_send_b64(p, 'user certificate signature (b64): ', user_cert_sig)
+
+    secret = p_read_b64(p, 'secret ciphertext (b64): ')
+    secret_val = int.from_bytes(secret, byteorder='little')
+    print(decrypt_RSA(user_e, user_d, user_n, secret_val).decode('utf-8'))
+
+def p_read_str(p, stop_str):
+    p.readuntil(stop_str)
+    return p.readline()[:-1]
+
+def TLS_handshake():
+    p = process('/challenge/run')
+    p_val = DH_read(p, 'p: ')
+    g_val = DH_read(p, 'g: ')
+    
+    d = p_read_hex_val(p, 'root key d: ')
+    root_cert = p_read_b64(p, 'root certificate (b64): ')
+    root_cert_sig = p_read_b64(p, 'root certificate signature (b64): ')
+
+    cert_str = root_cert.decode('utf-8')
+    root_cert_json = json.loads(cert_str)
+    n = root_cert_json['key']['n']
+    e = root_cert_json['key']['e']
+
+    B_sk = key_gen(len(hex(p_val)) - 2)
+    user_name = p_read_str(p, 'name: ').decode('utf-8')
+    A = DH_read(p, 'A: ')
+    B = pow(g_val, B_sk, p_val)
+    DH_send_B(p, B)
+
+    S = pow(A, B_sk, p_val)
+    key = SHA256Hash(S.to_bytes(256, "little")).digest()[:16] # use the same key as in /challenge/run
+    cipher_encrypt = AES.new(key=key, mode=AES.MODE_CBC, iv=b"\0"*16)
+    cipher_decrypt = AES.new(key=key, mode=AES.MODE_CBC, iv=b"\0"*16)
+
+    user_cert_json = root_cert_json
+    key = RSA.generate(1024)
+    user_e, user_d, user_n = key.e, key.d, key.n
+    user_cert_json['name'] = user_name
+    user_cert_json['key']['n'] = user_n
+    user_cert_json['key']['e'] = user_e
+    user_cert_json['signer']   = 'root'
+
+    user_cert_bytes = json.dumps(user_cert_json).encode('utf-8')
+    user_cert_sig   = sign(e, d, n, user_cert_bytes)
+    user_signature_data = (
+        user_name.encode().ljust(256, b"\0") +
+        A.to_bytes(256, "little") +
+        B.to_bytes(256, "little")
+    )
+    user_sig        = sign(user_e, user_d, user_n, user_signature_data)
+
+    user_cert_enc     = cipher_encrypt.encrypt(pad_pkcs7(user_cert_bytes))
+    user_cert_sig_enc = cipher_encrypt.encrypt(pad_pkcs7(user_cert_sig))
+    user_sig_enc      = cipher_encrypt.encrypt(pad_pkcs7(user_sig))
+
+    p_send_b64(p, 'user certificate (b64): ', user_cert_enc)
+    p_send_b64(p, 'user certificate signature (b64): ', user_cert_sig_enc)
+    p_send_b64(p, 'user signature (b64): ', user_sig_enc)
+
+    secret = p_read_b64(p, 'secret ciphertext (b64): ')
+    print(cipher_decrypt.decrypt(secret))
