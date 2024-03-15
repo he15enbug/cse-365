@@ -9,6 +9,6 @@
 ### Intercepting Communication **[Finished]**
 ### Cryptography **[Finished]**
 ### Access Control **[Finished]**
-### Web Security **[7/14]**
-### Binary Exploitation
+### Web Security **[Finished]**
+### Binary Exploitation **[0/22]**
 
