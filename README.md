@@ -13,6 +13,6 @@
 ### Binary Exploitation
 - Web Security: level15 **[Finished]**
 - Shellcode Injection **[Finished]**
-- Memory Errors **[0/14]**
+- Memory Errors **[6/14]**
 - Program Exploitation **[0/4]**
 
