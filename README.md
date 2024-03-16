@@ -10,5 +10,9 @@
 ### Cryptography **[Finished]**
 ### Access Control **[Finished]**
 ### Web Security **[Finished]**
-### Binary Exploitation **[2/22]**
+### Binary Exploitation
+- Web Security: level15 **[Finished]**
+- Shellcode Injection **[Finished]**
+- Memory Errors **[0/14]**
+- Program Exploitation **[0/4]**
 
