@@ -1,4 +1,4 @@
-# pwn.college CSE 365
+# [pwn.college CSE 365](https://pwn.college/cse365-f2023/)
 ## Dojos
 ### Talking Web **[Finished]**
 ### Assembly Crash Course **[Finished]**
